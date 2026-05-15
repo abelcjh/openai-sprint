@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Invoice Register</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="nav">
+        <div class="brand-mark">
+          <span>IR</span>
+          <div>
+            <strong>Invoice Register</strong>
+            <small>Malaysia SME truth layer</small>
+          </div>
+        </div>
+        <div class="nav-actions">
+          <a href="/export.csv">Export CSV</a>
+          <span class="status-pill {% if openai_enabled %}live{% endif %}">
+            {% if openai_enabled %}Agents SDK live{% else %}Local fallback{% endif %}
+            <small>{{ model }}</small>
+          </span>
+        </div>
+      </nav>
+
+      <section class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Autonomous invoice intake</p>
+          <h1>One register for every invoice hiding in WhatsApp, email, PDFs, and desk photos.</h1>
+          <p class="hero-text">
+            Agent specialists extract, normalize, de-duplicate, and route messy invoice inputs into
+            one governed source of truth for SME finance teams.
+          </p>
+          <div class="hero-actions">
+            <a class="primary-link" href="#ingest">Start ingesting</a>
+            <a class="ghost-link" href="#connectors">Connect channels</a>
+          </div>
+        </div>
+
+        <div class="motion-board" aria-label="Animated invoice pipeline">
+          <div class="source-node email-node">Email PDF</div>
+          <div class="source-node whatsapp-node">WhatsApp image</div>
+          <div class="source-node scan-node">Receipt photo</div>
+          <div class="motion-line line-one"></div>
+          <div class="motion-line line-two"></div>
+          <div class="motion-line line-three"></div>
+          <div class="agent-core">
+            <span class="pulse-ring"></span>
+            <strong>Agents SDK</strong>
+            <small>orchestrate -> validate -> register</small>
+          </div>
+          <div class="register-node">
+            <span>{{ registered_count }}</span>
+            trusted rows
+          </div>
+        </div>
+      </section>
+    </header>
+
+    <main class="page-shell">
+      {% if notice %}
+      <div class="notice-banner">{{ notice }}</div>
+      {% endif %}
+
+      <section class="metric-strip" aria-label="Register metrics">
+        <div>
+          <span>{{ registered_count }}</span>
+          <strong>Registered</strong>
+          <small>ready for export</small>
+        </div>
+        <div>
+          <span>{{ review_count }}</span>
+          <strong>Needs Review</strong>
+          <small>protected by guardrails</small>
+        </div>
+        <div>
+          <span>{{ rejected_count }}</span>
+          <strong>Rejected</strong>
+          <small>keeps the register clean</small>
+        </div>
+      </section>
+
+      <section id="connectors" class="connectors-grid" aria-label="Automatic connectors">
+        <div class="section-heading">
+          <p class="eyebrow">Always-on sources</p>
+          <h2>Connect email and WhatsApp intake</h2>
+          <p>Inbound channel payloads are pushed into the same Agents SDK invoice workflow as manual uploads.</p>
+        </div>
+
+        <div class="connector-card">
+          <div class="connector-icon email-icon">EM</div>
+          <div>
+            <h3>Email inbox</h3>
+            <p>Polls IMAP for unread invoice PDFs, receipt images, or invoice text.</p>
+            <small>
+              {% if connector_status.email_configured %}
+              Connected to {{ connector_status.email_user }} at {{ connector_status.email_host }}
+              {% else %}
+              Set EMAIL_IMAP_HOST, EMAIL_IMAP_USER, and EMAIL_IMAP_PASSWORD in .env
+              {% endif %}
+            </small>
+          </div>
+          {% if connector_status.email_configured %}
+          <form action="/connectors/email/poll" method="post">
+            <button type="submit">Poll Inbox</button>
+          </form>
+          {% else %}
+          <div class="disabled-action">
+            <button type="button" disabled>Poll Inbox</button>
+            <span>Configure email IMAP values in .env, then restart the server.</span>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="connector-card">
+          <div class="connector-icon whatsapp-icon">WA</div>
+          <div>
+            <h3>WhatsApp webhook</h3>
+            <p>Accepts WhatsApp text, PDF, and image webhook payloads for automatic ingestion.</p>
+            <small>Webhook URL: {{ base_url }}/webhooks/whatsapp</small>
+          </div>
+          <form action="/connectors/whatsapp/simulate" method="post" class="inline-message">
+            <input name="message" value="Supplier: Restoran Seri Pagi&#10;Invoice No: WA-7781&#10;Date: 14/05/2026&#10;Total: RM 129.90">
+            <button type="submit">Simulate WA</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="ingest" class="ingest-grid" aria-label="Invoice ingestion">
+        <div class="ingest-panel">
+          <div class="section-heading compact">
+            <p class="eyebrow">Manual capture</p>
+            <h2>Drop in messy invoices</h2>
+          </div>
+          <form class="upload-box" action="/ingest/file" method="post" enctype="multipart/form-data">
+            <label for="file">PDF or receipt photo</label>
+            <div class="file-drop">
+              <input id="file" name="file" type="file" accept=".pdf,image/*" required>
+              <button type="submit">Analyze File</button>
+            </div>
+          </form>
+
+          <form class="message-box" action="/ingest/text" method="post">
+            <label for="invoice_text">WhatsApp or text invoice</label>
+            <textarea id="invoice_text" name="invoice_text" rows="10">{{ sample_text }}</textarea>
+            <button type="submit">Analyze Message</button>
+          </form>
+        </div>
+
+        <div class="trace-theater" aria-label="Agent workflow animation">
+          <div class="trace-stage-title">
+            <p class="eyebrow">Live workflow</p>
+            <h2>Specialists, not a single prompt</h2>
+          </div>
+          <div class="agent-orbit">
+            <span>PDF</span>
+            <span>Image</span>
+            <span>Message</span>
+            <span>Normalize</span>
+            <span>Duplicate</span>
+            <span>Review</span>
+          </div>
+          <p>
+            The orchestrator routes inputs to specialist agents, calls product tools, then commits only
+            governed rows into the register.
+          </p>
+        </div>
+      </section>
+
+      <section class="register" aria-label="Central invoice register">
+        <div class="register-head">
+          <div>
+            <p class="eyebrow">Single source of truth</p>
+            <h2>Central Register</h2>
+          </div>
+          <p>This becomes the default invoice truth layer before accounting, tax filing, and e-invoicing workflows.</p>
+        </div>
+
+        <div class="invoice-list">
+          {% for invoice in invoices %}
+          <article class="invoice-card {{ invoice.status.value }}">
+            <div class="invoice-main">
+              <span class="badge {{ invoice.status.value }}">{{ invoice.status.value.replace('_', ' ') }}</span>
+              <h3>{{ invoice.supplier_name or 'Unknown supplier' }}</h3>
+              <div class="invoice-meta">
+                <span>{{ invoice.invoice_no or 'Missing invoice no' }}</span>
+                <span>{{ invoice.issue_date or 'Missing date' }}</span>
+                <span>{{ invoice.currency }} {{ "%.2f"|format(invoice.total_amount or 0) }}</span>
+              </div>
+              {% if invoice.supplier_registration_no %}
+              <small>{{ invoice.supplier_registration_no }}</small>
+              {% endif %}
+            </div>
+            <div class="confidence-ring" style="--score: {{ invoice.confidence * 100 }}">
+              <span>{{ "%.0f"|format(invoice.confidence * 100) }}%</span>
+              <small>confidence</small>
+            </div>
+            <div class="actions">
+              {% if invoice.status.value == 'needs_review' %}
+              <form action="/invoices/{{ invoice.id }}/approve" method="post">
+                <button class="icon-button" title="Approve invoice">Approve</button>
+              </form>
+              {% endif %}
+              <form action="/invoices/{{ invoice.id }}/delete" method="post">
+                <button class="icon-button danger" title="Delete invoice">Delete</button>
+              </form>
+            </div>
+            <details class="trace-details">
+              <summary>Agent trace and review reasons</summary>
+              {% if invoice.review_reasons %}
+              <div class="reasons">
+                {% for reason in invoice.review_reasons %}
+                <span>{{ reason }}</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if invoice.duplicate_candidates %}
+              <div class="duplicates">
+                {% for dupe in invoice.duplicate_candidates %}
+                <span>Possible duplicate: #{{ dupe.invoice_id }} {{ dupe.supplier_name }} {{ dupe.invoice_no }} ({{ dupe.reason }})</span>
+                {% endfor %}
+              </div>
+              {% endif %}
+              <ol class="trace">
+                {% for step in invoice.trace %}
+                <li class="{{ step.status }}">
+                  <strong>{{ step.agent }}</strong>
+                  <span>{{ step.action }}</span>
+                  <p>{{ step.detail }}</p>
+                </li>
+                {% endfor %}
+              </ol>
+            </details>
+          </article>
+          {% else %}
+          <div class="empty-state">
+            <strong>No invoices yet</strong>
+            <p>Ingest the sample message or simulate WhatsApp intake to start the show.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
